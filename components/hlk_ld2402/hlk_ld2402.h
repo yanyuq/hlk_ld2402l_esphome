@@ -15,6 +15,7 @@ static const uint8_t FRAME_FOOTER[] = {0x04, 0x03, 0x02, 0x01};
 
 // Add new frame format constants
 static const uint8_t DATA_FRAME_HEADER[] = {0xF4, 0xF3, 0xF2, 0xF1}; // Data frame header
+static const uint8_t DATA_FRAME_FOOTER[] = {0xF8, 0xF7, 0xF6, 0xF5}; // Data frame footer
 static const uint8_t DATA_FRAME_TYPE_DISTANCE = 0x83; // Distance data frame type
 static const uint8_t DATA_FRAME_TYPE_ENGINEERING = 0x84; // Engineering data frame type
 
@@ -61,7 +62,7 @@ static constexpr float STATIC_RANGE = 5.0f;            // Max 5m for static dete
 static constexpr float DISTANCE_PRECISION = 0.15f;     // ±0.15m accuracy
 static constexpr float DISTANCE_GATE_SIZE = 0.7f;      // 0.7m per gate
 static const uint8_t MAX_GATES = 32;                   // Hardware maximum gates
-static const uint8_t DEFAULT_GATES = 15;               // Update to 15 to match your configuration
+static const uint8_t DEFAULT_GATES = 16;               // Update to 16 to include Gate 15
 
 // Add calibration coefficients
 static const uint8_t DEFAULT_COEFF = 0x1E;  // Default coefficient (3.0)
@@ -70,7 +71,7 @@ static const float MAX_COEFF = 20.0f;
 
 class HLKLD2402Component : public Component, public uart::UARTDevice {
 public:
-  float get_setup_priority() const override { return setup_priority::LATE; }
+  float get_setup_priority() const override { return setup_priority::HARDWARE; }
 
   void set_distance_sensor(sensor::Sensor *distance_sensor) { distance_sensor_ = distance_sensor; }
   void set_distance_throttle(uint32_t throttle_ms) { distance_throttle_ms_ = throttle_ms; }
@@ -97,6 +98,17 @@ public:
       }
       energy_gate_sensors_[gate_index] = energy_sensor;
       engineering_data_enabled_ = true; // Enable engineering data processing
+    }
+  }
+  
+  // 添加静止能量门传感器设置方法
+  void set_still_energy_gate_sensor(uint8_t gate_index, sensor::Sensor *still_energy_sensor) {
+    if (gate_index < MAX_GATES) {
+      if (still_energy_gate_sensors_.size() <= gate_index) {
+        still_energy_gate_sensors_.resize(gate_index + 1, nullptr);
+      }
+      still_energy_gate_sensors_[gate_index] = still_energy_sensor;
+      engineering_data_enabled_ = true; // 启用工程数据处理
     }
   }
   
@@ -128,6 +140,7 @@ public:
   void enable_auto_gain();
   void check_power_interference();
   void factory_reset();  // Add new factory reset method
+  void factory_reset_with_params(float max_distance, int timeout);  // Add new factory reset with params method
   
   // Add new direct mode setting methods
   void set_engineering_mode_direct();
@@ -194,14 +207,13 @@ protected:
   float threshold_to_db_(uint32_t threshold);
 
   bool parse_data_frame_(const std::vector<uint8_t> &frame_data);
-  bool process_distance_frame_(const std::vector<uint8_t> &frame_data);
-  bool process_engineering_data_(const std::vector<uint8_t> &frame_data);
   bool process_engineering_from_distance_frame_(const std::vector<uint8_t> &frame_data); // New method
   void update_binary_sensors_(float distance_cm);  // New helper method
 
   // Batch parameter reading method
   bool get_parameters_batch_(const std::vector<uint16_t> &param_ids, std::vector<uint32_t> &values);
 
+// 在private部分添加帧重组相关变量
 private:
   // According to manual, response timeout should be 1s
   static const uint32_t RESPONSE_TIMEOUT_MS = 1000;
@@ -234,6 +246,9 @@ private:
   std::vector<sensor::Sensor *> energy_gate_sensors_; // Store gate sensors
   bool engineering_data_enabled_{false}; // Flag to enable engineering data processing
   
+  // 添加静止能量门传感器存储
+  std::vector<sensor::Sensor *> still_energy_gate_sensors_; // Store still energy gate sensors
+  
   // Add storage for threshold sensors
   std::vector<sensor::Sensor *> motion_threshold_sensors_;
   std::vector<sensor::Sensor *> micromotion_threshold_sensors_;
@@ -241,6 +256,9 @@ private:
   // Add cache for threshold values
   std::vector<float> motion_threshold_values_;
   std::vector<float> micromotion_threshold_values_;
+  
+  // 工程模式帧超时常量
+  static const uint32_t FRAME_TIMEOUT_MS = 200; // 调整为200ms
 };
 
 }  // namespace hlk_ld2402

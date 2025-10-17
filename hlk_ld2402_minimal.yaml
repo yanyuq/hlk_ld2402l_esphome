@@ -43,38 +43,55 @@ uart:
 external_components:
   - source:
       type: git
-      url: https://github.com/mouldybread/hlk_ld2402_esphome
+      url: https://github.com/sisheng36/hlk_ld2402_esphome
     refresh: 0ms
 
 hlk_ld2402:
   uart_id: uart_bus
   id: radar_sensor
-  max_distance: 5.0
+  max_distance: 6.3
   timeout: 5
 
 # Binary sensors - only essential ones
 binary_sensor:
-  # Presence detection - shows if someone is present in the detection area
   - platform: hlk_ld2402
     id: radar_presence
     name: "Presence"
     device_class: presence
     hlk_ld2402_id: radar_sensor
 
-  # Micromovement detection - shows if small movements are detected
   - platform: hlk_ld2402
     id: radar_micromovement
     name: "Micromovement"
     device_class: motion
     hlk_ld2402_id: radar_sensor
   
-  # Power interference detection - shows if power supply is causing interference
   - platform: hlk_ld2402
     id: radar_power_interference
     name: "Radar Power Interference"
     device_class: problem
     power_interference: true
     hlk_ld2402_id: radar_sensor
+
+  - platform: gpio
+    pin: GPIO12
+    name: "gpio out pin presence"
+    device_class: motion
+
+text_sensor:
+  - platform: hlk_ld2402
+    id: radar_firmware_version
+    name: "Radar Firmware Version"
+    entity_category: diagnostic
+    hlk_ld2402_id: radar_sensor
+    firmware_version: true
+
+  - platform: hlk_ld2402
+    id: radar_operating_mode
+    name: "Radar Operating Mode"
+    entity_category: diagnostic
+    hlk_ld2402_id: radar_sensor
+    operating_mode: true
 
 # Distance sensor - shows how far away the detected person is
 sensor:
@@ -85,23 +102,61 @@ sensor:
     device_class: distance
     unit_of_measurement: "cm"
     accuracy_decimals: 1
-    throttle: 2000ms  # 2 second throttle for smoother readings
+    throttle: 1000ms  # Use direct parameter for throttling
+
+  - platform: uptime
+    name: ESP Uptime
+    id: sys_uptime
+    update_interval: 60s
+  
+  - platform: wifi_signal 
+    name: RSSI
+    id: wifi_signal_db
+    update_interval: 60s
+    entity_category: "diagnostic"
+
+  - platform: template
+    name: "CpuFreq"
+    id: "CpuFreq"
+    icon: mdi:cpu-32-bit #自定义图标
+    lambda: |-
+      return ESP.getCpuFreqMHz();
+    unit_of_measurement: "MHz"
+    update_interval: 10s
+
+  - platform: template
+    name: "FreeMemory"
+    id: "FreeMemory"
+    icon: mdi:memory #自定义图标
+    lambda: |-
+      return ESP.getFreeHeap();
+    filters:
+      - multiply: 0.001
+    unit_of_measurement: "KB"
+    update_interval: 10s
 
 # Only include essential calibration button
 button:
   - platform: template
-    name: "Calibrate"
-    icon: "mdi:radar"
+    name: "Calibrate(Threshold=3)"
+    entity_category: config
     on_press:
       - lambda: id(radar_sensor).calibrate();
 
-  # Save button for after calibration or threshold changes
   - platform: template
     name: "Save Config"
-    icon: "mdi:content-save"
+    entity_category: config
     on_press:
       - lambda: id(radar_sensor).save_config();
+      
+  - platform: restart
+    icon: mdi:power-cycle
+    name: "ESP Reboot"
+    entity_category: diagnostic
 
-# Optional - Add status LED if available
-status_led:
-  pin: GPIO2
+# 板载LED开关
+switch:
+  - platform: gpio
+    pin: GPIO2
+    inverted: True
+    name: "LED"
