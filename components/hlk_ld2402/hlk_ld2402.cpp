@@ -244,7 +244,9 @@ void HLKLD2402Component::loop() {
         sprintf(ascii_buf + i, "%c", (last_bytes[i] >= 32 && last_bytes[i] < 127) ? last_bytes[i] : '.');
       }
       ESP_LOGI(TAG, "Last bytes (hex): %s", hex_buf);
-      ESP_LOGI(TAG, "Free heap now: %u", ESP.getFreeHeap());
+      // ESP_LOGI(TAG, "Free heap now: %u", ESP.getFreeHeap());
+      ESP_LOGI(TAG, "Free heap now: %u", esphome::heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+
     }
     byte_count = 0;
     last_status_time = millis();
