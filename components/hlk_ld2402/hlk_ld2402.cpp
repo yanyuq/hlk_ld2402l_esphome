@@ -246,7 +246,12 @@ void HLKLD2402Component::loop() {
       ESP_LOGI(TAG, "Last bytes (hex): %s", hex_buf);
       // ESP_LOGI(TAG, "Free heap now: %u", ESP.getFreeHeap());
       // ESP_LOGI(TAG, "Free heap now: %u", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
-      ESP_LOGI(TAG, "Free heap now: %u", esp_get_free_heap_size());
+      // ESP_LOGI(TAG, "Free heap now: %u", esp_get_free_heap_size());
+      #if defined(USE_ESP8266)
+        ESP_LOGI(TAG, "Free heap now: %u", system_get_free_heap_size());
+      #else
+        ESP_LOGI(TAG, "Free heap now: %u", esp_get_free_heap_size());
+      #endif
 
 
     }
