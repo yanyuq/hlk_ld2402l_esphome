@@ -227,14 +227,8 @@ void HLKLD2402LComponent::loop() {
     power_check_done = true;
   }
   
-  // Periodically read light sensor value (for LD2402-L)
-  if (light_sensor_ != nullptr) {
-    uint32_t now = millis();
-    if (now - last_light_update_ >= light_throttle_ms_) {
-      get_light_value_();
-      last_light_update_ = now;
-    }
-  }
+  // Note: Light sensor value is read from text data (process_line_) or data frames (process_engineering_from_distance_frame_)
+  // No need to periodically read via config mode, as it interferes with normal operation
   
   // Add periodic debug message - reduce frequency
   if (millis() - last_debug_time > 30000) {  // Every 30 seconds
@@ -789,13 +783,19 @@ bool HLKLD2402LComponent::process_engineering_from_distance_frame_(const std::ve
   uint8_t light_value_raw = frame_data[9];
   float light_value = static_cast<float>(light_value_raw);
   
-  // 更新光敏传感器（如果已配置）
-  if (this->light_sensor_ != nullptr) {
-    this->light_sensor_->publish_state(light_value);
-    light_value_ = light_value;
-    if (!throttled) {
-      ESP_LOGD(TAG, "Light sensor value from frame: %.0f", light_value);
+  // 验证光敏值范围（0-255）
+  if (light_value >= 0.0f && light_value <= 255.0f) {
+    // 更新光敏传感器（如果已配置）
+    if (this->light_sensor_ != nullptr) {
+      this->light_sensor_->publish_state(light_value);
+      light_value_ = light_value;
+      if (!throttled) {
+        ESP_LOGD(TAG, "Light sensor value from frame: %.0f", light_value);
+      }
     }
+  } else {
+    ESP_LOGW(TAG, "Invalid light value from frame: %.0f (raw: 0x%02X, out of range)", 
+             light_value, light_value_raw);
   }
   
   // 在工程模式下也更新距离和存在状态
@@ -958,14 +958,20 @@ void HLKLD2402LComponent::process_line_(const std::string &line) {
       float light = strtof(light_str.c_str(), &end);
       
       if (end != light_str.c_str()) {
-        light_value = light;
-        has_light_value = true;
-        light_value_ = light_value;
-        
-        // Update light sensor if configured
-        if (this->light_sensor_ != nullptr) {
-          this->light_sensor_->publish_state(light_value);
-          ESP_LOGD(TAG, "Light sensor value: %.1f", light_value);
+        // Validate light value range (0-255 for raw sensor value)
+        // HLK-LD2402-L outputs light_value as 0-255
+        if (light >= 0.0f && light <= 255.0f) {
+          light_value = light;
+          has_light_value = true;
+          light_value_ = light_value;
+          
+          // Update light sensor if configured
+          if (this->light_sensor_ != nullptr) {
+            this->light_sensor_->publish_state(light_value);
+            ESP_LOGD(TAG, "Light sensor value from text: %.1f", light_value);
+          }
+        } else {
+          ESP_LOGW(TAG, "Invalid light value from text: %.1f (out of range 0-255, ignoring)", light);
         }
       }
     }
@@ -1990,6 +1996,16 @@ bool HLKLD2402LComponent::get_light_value_() {
     // Parameter value is at offset 6-9, little endian
     uint32_t raw_value = response[6] | (response[7] << 8) | (response[8] << 16) | (response[9] << 24);
     
+    // Validate raw value to prevent overflow/underflow issues
+    // Light sensor should return reasonable values (0-10000 max for lux)
+    if (raw_value > 10000) {
+      ESP_LOGW(TAG, "Invalid light sensor raw value: %u (too large, ignoring)", raw_value);
+      if (entered_config_mode) {
+        exit_config_mode_();
+      }
+      return false;
+    }
+    
     // Light sensor typically returns 0-100 (percentage) or 0-1000 (lux * 10)
     // Try to determine format based on value range
     if (raw_value <= 100) {
@@ -2000,10 +2016,25 @@ bool HLKLD2402LComponent::get_light_value_() {
       // Likely lux * 10 format (0-1000 = 0-100 lux)
       light_value = static_cast<float>(raw_value) / 10.0f;
       ESP_LOGD(TAG, "Light sensor value: %.1f lux (raw: %u)", light_value, raw_value);
-    } else {
-      // Use raw value as-is, might be direct lux value
+    } else if (raw_value <= 10000) {
+      // Might be direct lux value (0-10000 lux)
       light_value = static_cast<float>(raw_value);
-      ESP_LOGD(TAG, "Light sensor value: %.1f (raw: %u)", light_value, raw_value);
+      ESP_LOGD(TAG, "Light sensor value: %.1f lux (raw: %u)", light_value, raw_value);
+    } else {
+      ESP_LOGW(TAG, "Unexpected light sensor value: %u", raw_value);
+      if (entered_config_mode) {
+        exit_config_mode_();
+      }
+      return false;
+    }
+    
+    // Validate final light value before publishing
+    if (light_value < 0.0f || light_value > 100000.0f) {
+      ESP_LOGW(TAG, "Invalid light sensor value: %.1f (out of range, ignoring)", light_value);
+      if (entered_config_mode) {
+        exit_config_mode_();
+      }
+      return false;
     }
     
     light_value_ = light_value;
