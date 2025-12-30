@@ -55,7 +55,7 @@ external_components:
       url: https://github.com/sisheng36/hlk_ld2402_esphome
     refresh: 0ms
 
-hlk_ld2402:
+hlk_ld2402l:
   uart_id: uart_bus
   id: radar_sensor
   max_distance: 6.3
@@ -63,51 +63,62 @@ hlk_ld2402:
 
 # Binary sensors
 binary_sensor:
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_presence
     name: "Presence"
     device_class: presence
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromovement
     name: "Micromovement"
     device_class: motion
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
   
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_power_interference
     name: "Radar Power Interference"
     device_class: problem
     power_interference: true
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
 
 # Distance sensor
 sensor:
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_distance
     name: "Distance"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     device_class: distance
     unit_of_measurement: "cm"
     accuracy_decimals: 1
     throttle: 1000ms  # Use direct parameter for throttling
     
   # Calibration progress sensor
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_calibration_progress
     name: "Radar Calibration Progress"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     unit_of_measurement: "%"
     icon: "mdi:progress-wrench"
     state_class: measurement
     calibration_progress: true
 
+  # Light sensor (for LD2402-L with photosensitive sensor)
+  - platform: hlk_ld2402l
+    id: radar_light
+    name: "Light"
+    hlk_ld2402l_id: radar_sensor
+    device_class: illuminance
+    unit_of_measurement: "lux"
+    accuracy_decimals: 1
+    icon: "mdi:brightness-6"
+    light: true
+
   # Energy Gate Sensors (0-14)
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_00
     name: "Radar Energy Gate 00 (0.0-0.7m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -116,10 +127,10 @@ sensor:
     energy_gate:
       gate_index: 0
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_01
     name: "Radar Energy Gate 01 (0.7-1.4m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -128,10 +139,10 @@ sensor:
     energy_gate:
       gate_index: 1
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_02
     name: "Radar Energy Gate 02 (1.4-2.1m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -140,10 +151,10 @@ sensor:
     energy_gate:
       gate_index: 2
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_03
     name: "Radar Energy Gate 03 (2.1-2.8m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -152,10 +163,10 @@ sensor:
     energy_gate:
       gate_index: 3
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_04
     name: "Radar Energy Gate 04 (2.8-3.5m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -164,10 +175,10 @@ sensor:
     energy_gate:
       gate_index: 4
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_05
     name: "Radar Energy Gate 05 (3.5-4.2m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -176,10 +187,10 @@ sensor:
     energy_gate:
       gate_index: 5
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_06
     name: "Radar Energy Gate 06 (4.2-4.9m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -188,10 +199,10 @@ sensor:
     energy_gate:
       gate_index: 6
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_07
     name: "Radar Energy Gate 07 (4.9-5.6m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -200,10 +211,10 @@ sensor:
     energy_gate:
       gate_index: 7
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_08
     name: "Radar Energy Gate 08 (5.6-6.3m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -212,10 +223,10 @@ sensor:
     energy_gate:
       gate_index: 8
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_09
     name: "Radar Energy Gate 09 (6.3-7.0m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -224,10 +235,10 @@ sensor:
     energy_gate:
       gate_index: 9
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_10
     name: "Radar Energy Gate 10 (7.0-7.7m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -236,10 +247,10 @@ sensor:
     energy_gate:
       gate_index: 10
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_11
     name: "Radar Energy Gate 11 (7.7-8.4m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -248,10 +259,10 @@ sensor:
     energy_gate:
       gate_index: 11
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_12
     name: "Radar Energy Gate 12 (8.4-9.1m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -260,10 +271,10 @@ sensor:
     energy_gate:
       gate_index: 12
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_13
     name: "Radar Energy Gate 13 (9.1-9.8m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -272,10 +283,10 @@ sensor:
     energy_gate:
       gate_index: 13
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_14
     name: "Radar Energy Gate 14 (9.8-10.5m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -284,10 +295,10 @@ sensor:
     energy_gate:
       gate_index: 14
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_energy_gate_15
     name: "Radar Energy Gate 15 (10.5-11.2m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:antenna"
@@ -297,10 +308,10 @@ sensor:
       gate_index: 15
 
   # Still Energy Gate Sensors (0-15)
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_00
     name: "Radar Still Energy Gate 00 (0.0-0.7m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -309,10 +320,10 @@ sensor:
     still_energy_gate:
       gate_index: 0
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_01
     name: "Radar Still Energy Gate 01 (0.7-1.4m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -321,10 +332,10 @@ sensor:
     still_energy_gate:
       gate_index: 1
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_02
     name: "Radar Still Energy Gate 02 (1.4-2.1m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -333,10 +344,10 @@ sensor:
     still_energy_gate:
       gate_index: 2
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_03
     name: "Radar Still Energy Gate 03 (2.1-2.8m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -345,10 +356,10 @@ sensor:
     still_energy_gate:
       gate_index: 3
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_04
     name: "Radar Still Energy Gate 04 (2.8-3.5m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -357,10 +368,10 @@ sensor:
     still_energy_gate:
       gate_index: 4
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_05
     name: "Radar Still Energy Gate 05 (3.5-4.2m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -369,10 +380,10 @@ sensor:
     still_energy_gate:
       gate_index: 5
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_06
     name: "Radar Still Energy Gate 06 (4.2-4.9m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -381,10 +392,10 @@ sensor:
     still_energy_gate:
       gate_index: 6
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_07
     name: "Radar Still Energy Gate 07 (4.9-5.6m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -393,10 +404,10 @@ sensor:
     still_energy_gate:
       gate_index: 7
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_08
     name: "Radar Still Energy Gate 08 (5.6-6.3m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -405,10 +416,10 @@ sensor:
     still_energy_gate:
       gate_index: 8
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_09
     name: "Radar Still Energy Gate 09 (6.3-7.0m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -417,10 +428,10 @@ sensor:
     still_energy_gate:
       gate_index: 9
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_10
     name: "Radar Still Energy Gate 10 (7.0-7.7m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -429,10 +440,10 @@ sensor:
     still_energy_gate:
       gate_index: 10
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_11
     name: "Radar Still Energy Gate 11 (7.7-8.4m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -441,10 +452,10 @@ sensor:
     still_energy_gate:
       gate_index: 11
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_12
     name: "Radar Still Energy Gate 12 (8.4-9.1m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -453,10 +464,10 @@ sensor:
     still_energy_gate:
       gate_index: 12
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_13
     name: "Radar Still Energy Gate 13 (9.1-9.8m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -465,10 +476,10 @@ sensor:
     still_energy_gate:
       gate_index: 13
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_14
     name: "Radar Still Energy Gate 14 (9.8-10.5m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -477,10 +488,10 @@ sensor:
     still_energy_gate:
       gate_index: 14
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_still_energy_gate_15
     name: "Radar Still Energy Gate 15 (10.5-11.2m)"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:sleep"
@@ -491,10 +502,10 @@ sensor:
 
   # Motion Threshold Sensors (0-15)
   # Micromotion Threshold Sensors (0-15)
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_00
     name: "Gate 00 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -503,10 +514,10 @@ sensor:
     motion_threshold:
       gate_index: 0
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_01
     name: "Gate 01 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -515,10 +526,10 @@ sensor:
     motion_threshold:
       gate_index: 1
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_02
     name: "Gate 02 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -527,10 +538,10 @@ sensor:
     motion_threshold:
       gate_index: 2
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_03
     name: "Gate 03 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -539,10 +550,10 @@ sensor:
     motion_threshold:
       gate_index: 3
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_04
     name: "Gate 04 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -551,10 +562,10 @@ sensor:
     motion_threshold:
       gate_index: 4
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_05
     name: "Gate 05 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -563,10 +574,10 @@ sensor:
     motion_threshold:
       gate_index: 5
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_06
     name: "Gate 06 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -575,10 +586,10 @@ sensor:
     motion_threshold:
       gate_index: 6
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_07
     name: "Gate 07 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -587,10 +598,10 @@ sensor:
     motion_threshold:
       gate_index: 7
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_08
     name: "Gate 08 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -599,10 +610,10 @@ sensor:
     motion_threshold:
       gate_index: 8
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_09
     name: "Gate 09 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -611,10 +622,10 @@ sensor:
     motion_threshold:
       gate_index: 9
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_10
     name: "Gate 10 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -623,10 +634,10 @@ sensor:
     motion_threshold:
       gate_index: 10
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_11
     name: "Gate 11 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -635,10 +646,10 @@ sensor:
     motion_threshold:
       gate_index: 11
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_12
     name: "Gate 12 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -647,10 +658,10 @@ sensor:
     motion_threshold:
       gate_index: 12
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_13
     name: "Gate 13 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -659,10 +670,10 @@ sensor:
     motion_threshold:
       gate_index: 13
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_14
     name: "Gate 14 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -671,10 +682,10 @@ sensor:
     motion_threshold:
       gate_index: 14
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_motion_threshold_15
     name: "Gate 15 Motion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:gauge"
@@ -684,10 +695,10 @@ sensor:
       gate_index: 15
 
   # Micromotion Threshold Sensors (0-15)
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_00
     name: "Gate 00 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -696,10 +707,10 @@ sensor:
     micromotion_threshold:
       gate_index: 0
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_01
     name: "Gate 01 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -708,10 +719,10 @@ sensor:
     micromotion_threshold:
       gate_index: 1
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_02
     name: "Gate 02 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -720,10 +731,10 @@ sensor:
     micromotion_threshold:
       gate_index: 2
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_03
     name: "Gate 03 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -732,10 +743,10 @@ sensor:
     micromotion_threshold:
       gate_index: 3
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_04
     name: "Gate 04 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -744,10 +755,10 @@ sensor:
     micromotion_threshold:
       gate_index: 4
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_05
     name: "Gate 05 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -756,10 +767,10 @@ sensor:
     micromotion_threshold:
       gate_index: 5
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_06
     name: "Gate 06 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -768,10 +779,10 @@ sensor:
     micromotion_threshold:
       gate_index: 6
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_07
     name: "Gate 07 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -780,10 +791,10 @@ sensor:
     micromotion_threshold:
       gate_index: 7
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_08
     name: "Gate 08 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -792,10 +803,10 @@ sensor:
     micromotion_threshold:
       gate_index: 8
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_09
     name: "Gate 09 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -804,10 +815,10 @@ sensor:
     micromotion_threshold:
       gate_index: 9
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_10
     name: "Gate 10 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -816,10 +827,10 @@ sensor:
     micromotion_threshold:
       gate_index: 10
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_11
     name: "Gate 11 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -828,10 +839,10 @@ sensor:
     micromotion_threshold:
       gate_index: 11
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_12
     name: "Gate 12 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -840,10 +851,10 @@ sensor:
     micromotion_threshold:
       gate_index: 12
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_13
     name: "Gate 13 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -852,10 +863,10 @@ sensor:
     micromotion_threshold:
       gate_index: 13
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_14
     name: "Gate 14 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -864,10 +875,10 @@ sensor:
     micromotion_threshold:
       gate_index: 14
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromotion_threshold_15
     name: "Gate 15 Micromotion Threshold"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     state_class: measurement
     unit_of_measurement: "dB"
     icon: "mdi:hand-wave"
@@ -878,18 +889,18 @@ sensor:
 
 # Text sensors
 text_sensor:
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_firmware_version
     name: "Radar Firmware Version"
     entity_category: diagnostic
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     firmware_version: true
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_operating_mode
     name: "Radar Operating Mode"
     entity_category: diagnostic
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     operating_mode: true
 
 # Control buttons - using template buttons 

@@ -46,7 +46,7 @@ external_components:
       url: https://github.com/sisheng36/hlk_ld2402_esphome
     refresh: 0ms
 
-hlk_ld2402:
+hlk_ld2402l:
   uart_id: uart_bus
   id: radar_sensor
   max_distance: 6.3
@@ -54,24 +54,24 @@ hlk_ld2402:
 
 # Binary sensors - only essential ones
 binary_sensor:
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_presence
     name: "Presence"
     device_class: presence
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_micromovement
     name: "Micromovement"
     device_class: motion
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
   
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_power_interference
     name: "Radar Power Interference"
     device_class: problem
     power_interference: true
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
 
   - platform: gpio
     pin: GPIO12
@@ -79,30 +79,41 @@ binary_sensor:
     device_class: motion
 
 text_sensor:
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_firmware_version
     name: "Radar Firmware Version"
     entity_category: diagnostic
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     firmware_version: true
 
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_operating_mode
     name: "Radar Operating Mode"
     entity_category: diagnostic
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     operating_mode: true
 
 # Distance sensor - shows how far away the detected person is
 sensor:
-  - platform: hlk_ld2402
+  - platform: hlk_ld2402l
     id: radar_distance
     name: "Distance"
-    hlk_ld2402_id: radar_sensor
+    hlk_ld2402l_id: radar_sensor
     device_class: distance
     unit_of_measurement: "cm"
     accuracy_decimals: 1
     throttle: 1000ms  # Use direct parameter for throttling
+
+  # Light sensor (for LD2402-L with photosensitive sensor)
+  - platform: hlk_ld2402l
+    id: radar_light
+    name: "Light"
+    hlk_ld2402l_id: radar_sensor
+    device_class: illuminance
+    unit_of_measurement: "lux"
+    accuracy_decimals: 1
+    icon: "mdi:brightness-6"
+    light: true
 
   - platform: uptime
     name: ESP Uptime

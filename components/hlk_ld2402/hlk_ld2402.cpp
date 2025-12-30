@@ -3,16 +3,16 @@
 #include "esphome/core/log.h"
 
 namespace esphome {
-namespace hlk_ld2402 {
+namespace hlk_ld2402l {
 
-static const char *const TAG = "hlk_ld2402";
+static const char *const TAG = "hlk_ld2402l";
 
 // 添加帧重组相关的成员变量声明
 static std::vector<uint8_t> partial_frame_buffer_;
 static uint32_t last_frame_byte_time_ = 0;
 static const uint32_t FRAME_TIMEOUT_MS = 500;
 
-void HLKLD2402Component::setup() {
+void HLKLD2402LComponent::setup() {
   ESP_LOGCONFIG(TAG, "Setting up HLK-LD2402...");
   
   // Configure UART - explicitly set again
@@ -95,13 +95,13 @@ void HLKLD2402Component::setup() {
 }
 
 // New function to passively monitor output for version info
-void HLKLD2402Component::begin_passive_version_detection_() {
+void HLKLD2402LComponent::begin_passive_version_detection_() {
   ESP_LOGI(TAG, "Starting passive version detection");
   firmware_version_ = "HLK-LD2402"; // Default fallback version
 }
 
 // Add method to publish operating mode
-void HLKLD2402Component::publish_operating_mode_() {
+void HLKLD2402LComponent::publish_operating_mode_() {
   if (operating_mode_text_sensor_ != nullptr) {
     operating_mode_text_sensor_->publish_state(operating_mode_);
     ESP_LOGI(TAG, "Published operating mode: %s", operating_mode_.c_str());
@@ -109,7 +109,7 @@ void HLKLD2402Component::publish_operating_mode_() {
 }
 
 // Update get_firmware_version_ method to use correct command and parsing
-void HLKLD2402Component::get_firmware_version_() {
+void HLKLD2402LComponent::get_firmware_version_() {
   ESP_LOGI(TAG, "Retrieving firmware version...");
   
   // Clear any pending data
@@ -188,7 +188,7 @@ void HLKLD2402Component::get_firmware_version_() {
   }
 }
 
-void HLKLD2402Component::loop() {
+void HLKLD2402LComponent::loop() {
   static uint32_t last_byte_time = 0;
   static const uint32_t PROCESS_INTERVAL = 2000; // Only process lines every 2 seconds
   static const uint32_t TIMEOUT_MS = 100; // Reset buffer if no data for 100ms
@@ -225,6 +225,15 @@ void HLKLD2402Component::loop() {
     ESP_LOGI(TAG, "Performing power interference check...");
     check_power_interference();
     power_check_done = true;
+  }
+  
+  // Periodically read light sensor value (for LD2402-L)
+  if (light_sensor_ != nullptr) {
+    uint32_t now = millis();
+    if (now - last_light_update_ >= light_throttle_ms_) {
+      get_light_value_();
+      last_light_update_ = now;
+    }
   }
   
   // Add periodic debug message - reduce frequency
@@ -335,13 +344,13 @@ void HLKLD2402Component::loop() {
     // FIRST CHECK: Check for data frame header (F4 F3 F2 F1)
     if (c == DATA_FRAME_HEADER[0]) {
       // Need to check if this is actually a data frame
-      if (available() >= 4) { // Need at least 4 more bytes to verify the header and frame type
-        // Peek at the next 4 bytes to check for frame header and type
+      if (available() >= 3) { // Need at least 3 more bytes to verify the header
+        // Peek at the next 3 bytes to check for frame header
         bool is_data_frame = true;
-        uint8_t peek_bytes[4]; // Header + frame type
+        uint8_t peek_bytes[3];
         
-        // Read the next 4 bytes without removing them from buffer
-        for (int i = 0; i < 4; i++) {
+        // Read the next 3 bytes to verify header
+        for (int i = 0; i < 3; i++) {
           if (!available()) {
             is_data_frame = false;
             break;
@@ -349,152 +358,101 @@ void HLKLD2402Component::loop() {
           
           read_byte(&peek_bytes[i]);
           
-          // First 3 bytes should match header, 4th byte is frame type
-          if (i < 3 && peek_bytes[i] != DATA_FRAME_HEADER[i+1]) {
+          // Check if bytes match the frame header
+          if (peek_bytes[i] != DATA_FRAME_HEADER[i+1]) {
             is_data_frame = false;
             break;
           }
         }
         
         if (is_data_frame) {
-          // We have a proper data frame header! Collect the whole frame
-          // The 4th byte is the frame type (0x83 for distance data, 0x84 for engineering data)
-          uint8_t frame_type = peek_bytes[3];
-          
-          // 添加工程模式日志
-          if (operating_mode_ == "Engineering") {
-            // ESP_LOGD(TAG, "In engineering mode, received frame type: 0x%02X", frame_type);
-          }
+          // We have a proper data frame header! 
+          // New format: F4 F3 F2 F1 (header) + length (2 bytes) + data + footer
+          // Only process in Engineering mode (normal mode uses text format)
           
           // 根据模式选择处理策略
           if (operating_mode_ == "Engineering") {
-            // 工程模式：使用直接处理方式，不再使用缓冲区
-            if (true) { // 始终执行，不再检查缓冲区
-              // 清空缓冲区，确保读取的是最新数据
-              while (available()) {
-                uint8_t discard;
-                read_byte(&discard);
-              }
-              
-              // 等待0.3秒，让新数据进入缓冲区
-              delay(300);
-              
-              std::vector<uint8_t> frame_data;
-              size_t bytes_to_read = 278; // 直接设置为278，不减去任何值
-              
-              // 只读取一次数据，因为现在一次就能读取到完整帧
-              size_t bytes_read = 0;
-              
-              while (available() && bytes_read < bytes_to_read) {
-                uint8_t data_byte;
-                read_byte(&data_byte);
-                frame_data.push_back(data_byte);
-                bytes_read++;
-              }
-              
-              // 增加更详细的日志
-              ESP_LOGD(TAG, "Read %d bytes into frame data (requested %d), total size: %d, available: %d", 
-                      bytes_read, bytes_to_read, frame_data.size(), available());
-              
-              // 在数据中查找完整的帧（帧头F4F3F2F1到帧尾F8F7F6F5）
-              bool found_frame = false;
-              size_t frame_start = 0;
-              size_t frame_end = 0;
-              
-              // 查找帧头 - 确保在整个数据中查找
-              for (size_t i = 0; i + 3 < frame_data.size(); i++) {
-                if (frame_data[i] == 0xF4 &&
-                    frame_data[i+1] == 0xF3 &&
-                    frame_data[i+2] == 0xF2 &&
-                    frame_data[i+3] == 0xF1) {
-                  frame_start = i;
-                  ESP_LOGD(TAG, "Found frame header at position %d", frame_start);
-                  
-                  // 从帧头位置开始查找帧尾
-                  for (size_t j = frame_start + 4; j + 3 < frame_data.size(); j++) {
-                    if (frame_data[j] == 0xF8 &&
-                        frame_data[j+1] == 0xF7 &&
-                        frame_data[j+2] == 0xF6 &&
-                        frame_data[j+3] == 0xF5) {
-                      frame_end = j + 3; // 包含帧尾的最后一个字节
-                      found_frame = true;
-                      ESP_LOGD(TAG, "Found frame footer at position %d", frame_end);
-                      break;
-                    }
-                  }
-                  
-                  if (found_frame) {
-                    break;
-                  }
-                }
-              }
-              
-              if (found_frame) {
-                // 提取完整帧
-                std::vector<uint8_t> complete_frame(frame_data.begin() + frame_start,
-                                                  frame_data.begin() + frame_end + 1);
-                
-                ESP_LOGD(TAG, "Found complete frame: %d bytes (from %d to %d)", 
-                        complete_frame.size(), frame_start, frame_end);
-                
-                // 处理完整帧
-                process_engineering_from_distance_frame_(complete_frame);
-                
-                // 添加更长延迟，避免立即开始新的读取
-                delay(500);  // 增加到500ms，减少不必要的频繁读取
-              } else {
-                ESP_LOGW(TAG, "No complete frame found in data of %d bytes", 
-                        frame_data.size());
-                
-                // 增加延迟时间，避免频繁的无效读取
-                delay(300);
-              }
-              
-              // 处理完一帧后，跳出当前循环，避免立即处理下一帧
-                // 添加这一行，处理完一帧后直接返回，避免继续处理
-            }
-          return; 
-          } else {
-            // 正常模式：保持原有简单处理逻辑
+            // 工程模式：读取完整的数据帧
+            // 已经读取了帧头的第一个字节c和接下来的3个字节peek_bytes[0-2]
+            // 现在需要读取长度字段，然后根据长度读取完整帧
+            
             std::vector<uint8_t> frame_data;
             
-            // 添加已读取的5字节
+            // 添加已读取的帧头（4字节）
             frame_data.push_back(c);  // F4
-            for (int i = 0; i < 4; i++) {
-              frame_data.push_back(peek_bytes[i]);
+            for (int i = 0; i < 3; i++) {
+              frame_data.push_back(peek_bytes[i]);  // F3 F2 F1
             }
             
-            // 读取剩余数据（保持原有逻辑）
-            size_t max_frame_size = 200;
+            // 读取长度字段（2字节）
+            if (available() < 2) {
+              ESP_LOGW(TAG, "Not enough data for length field");
+              continue;
+            }
+            
+            uint8_t length_bytes[2];
+            read_byte(&length_bytes[0]);
+            read_byte(&length_bytes[1]);
+            frame_data.push_back(length_bytes[0]);
+            frame_data.push_back(length_bytes[1]);
+            
+            // 解析长度（小端格式）
+            uint16_t data_length = length_bytes[0] | (length_bytes[1] << 8);
+            
+            // 计算总帧长度：帧头(4) + 长度字段(2) + 数据(data_length) + 帧尾(4)
+            size_t total_frame_size = 4 + 2 + data_length + 4;
+            
+            ESP_LOGD(TAG, "Reading engineering frame: data_length=%d, total_size=%d", 
+                    data_length, total_frame_size);
+            
+            // 读取剩余数据（数据部分 + 帧尾）
+            size_t remaining_bytes = data_length + 4;  // 数据 + 帧尾
             size_t bytes_read = 0;
             
-            // 动态调整帧大小（保持原有逻辑）
-            if (frame_data.size() >= 7) {
-              uint16_t frame_length = frame_data[5] | (frame_data[6] << 8);
-              size_t expected_total_size = 5 + 2 + frame_length;
-              if (expected_total_size > max_frame_size) {
-                max_frame_size = std::min(expected_total_size, size_t(300));
-              }
+            // 等待数据到达，最多等待500ms
+            uint32_t start_wait = millis();
+            while (available() < remaining_bytes && (millis() - start_wait) < 500) {
+              delay(10);
             }
             
-            while (available() && bytes_read < max_frame_size) {
+            if (available() < remaining_bytes) {
+              ESP_LOGW(TAG, "Timeout waiting for frame data: need %d, have %d", 
+                      remaining_bytes, available());
+              continue;
+            }
+            
+            // 读取剩余数据
+            while (bytes_read < remaining_bytes && available()) {
               uint8_t data_byte;
               read_byte(&data_byte);
               frame_data.push_back(data_byte);
               bytes_read++;
-              
-              // 检查帧尾（保持原有逻辑）
-              if (frame_data.size() >= 4) {
-                size_t pos = frame_data.size() - 4;
-                if (frame_data[pos] == DATA_FRAME_FOOTER[0] &&
-                    frame_data[pos+1] == DATA_FRAME_FOOTER[1] &&
-                    frame_data[pos+2] == DATA_FRAME_FOOTER[2] &&
-                    frame_data[pos+3] == DATA_FRAME_FOOTER[3]) {
-                  ESP_LOGD(TAG, "Found complete frame with footer at %d bytes", frame_data.size());
-                  break;
-                }
-              }
             }
+            
+            if (frame_data.size() == total_frame_size) {
+              // 验证帧尾
+              size_t footer_pos = frame_data.size() - 4;
+              if (frame_data[footer_pos] == 0xF8 &&
+                  frame_data[footer_pos+1] == 0xF7 &&
+                  frame_data[footer_pos+2] == 0xF6 &&
+                  frame_data[footer_pos+3] == 0xF5) {
+                ESP_LOGD(TAG, "Complete engineering frame received: %d bytes", frame_data.size());
+                process_engineering_from_distance_frame_(frame_data);
+              } else {
+                ESP_LOGW(TAG, "Invalid frame footer");
+              }
+            } else {
+              ESP_LOGW(TAG, "Incomplete frame: expected %d bytes, got %d", 
+                      total_frame_size, frame_data.size());
+            }
+            
+            return;  // 处理完一帧后返回 
+          } else {
+            // 正常模式：HLK-LD2402-L在正常模式下输出文本格式，不处理二进制数据帧
+            // 如果收到数据帧，可能是工程模式数据，跳过处理
+            ESP_LOGD(TAG, "Normal mode: skipping binary data frame, expecting text format");
+            // 将已读取的字节放回缓冲区或丢弃
+            // 继续处理文本数据
           }
           
           continue; // 跳过后续处理
@@ -728,7 +686,7 @@ void HLKLD2402Component::loop() {
 
 
 // Add new method to process engineering data
-bool HLKLD2402Component::process_engineering_from_distance_frame_(const std::vector<uint8_t> &frame_data) {
+bool HLKLD2402LComponent::process_engineering_from_distance_frame_(const std::vector<uint8_t> &frame_data) {
   // Early exit if engineering data processing is not enabled
   if (!engineering_data_enabled_) {
     ESP_LOGD(TAG, "Engineering data processing disabled");
@@ -737,12 +695,6 @@ bool HLKLD2402Component::process_engineering_from_distance_frame_(const std::vec
 
   if (energy_gate_sensors_.empty() && still_energy_gate_sensors_.empty()) {
     ESP_LOGD(TAG, "No energy gate sensors configured");
-    return false;
-  }
-
-  // 确保帧长度足够
-  if (frame_data.size() < 10) {
-    ESP_LOGW(TAG, "Engineering frame too short: %d bytes", frame_data.size());
     return false;
   }
 
@@ -769,14 +721,17 @@ bool HLKLD2402Component::process_engineering_from_distance_frame_(const std::vec
     return false;
   }
 
-  // 检查帧类型和长度
-  if (frame_data.size() < 7) {
+  // 检查帧长度字段
+  if (frame_data.size() < 6) {
     ESP_LOGW(TAG, "Frame too short to contain length field");
     return false;
   }
   
-  uint16_t data_length = frame_data[5] | (frame_data[6] << 8);  // 小端格式
-  bool is_complete_frame = (frame_data.size() >= (9 + data_length));  // 帧头(4) + 类型(1) + 长度(2) + 数据(data_length) + 帧尾(4)
+  // 新格式：字节4-5是长度（小端格式）
+  uint16_t data_length = frame_data[4] | (frame_data[5] << 8);  // 小端格式
+  // 总帧长度 = 帧头(4) + 长度字段(2) + 数据(data_length) + 帧尾(4)
+  size_t expected_total_size = 4 + 2 + data_length + 4;
+  bool is_complete_frame = (frame_data.size() >= expected_total_size);
 
   if (!throttled) {
     ESP_LOGD(TAG, "Engineering frame status: %s (size: %d bytes, reported length: %d)", 
@@ -808,43 +763,74 @@ bool HLKLD2402Component::process_engineering_from_distance_frame_(const std::vec
     }
   }
 
-  // 根据数据帧格式解析
-  // 解析检测结果和距离
-  if (frame_data.size() >= 9) {
-    uint8_t detection_status = frame_data[6];  // 检测结果
-    uint16_t target_distance = frame_data[7] | (frame_data[8] << 8);  // 目标距离(cm)
-    
-    // 在工程模式下也更新距离和存在状态
+  // 根据新的数据帧格式解析
+  // 数据帧格式：
+  // 字节0-3: 帧头 F4 F3 F2 F1
+  // 字节4-5: 长度（小端）
+  // 字节6: 检测结果（00=无人，01=有人，02=静止人员）
+  // 字节7-8: 目标距离（小端，cm）
+  // 字节9: 光敏值（0-255）
+  // 字节10-73: 运动能量值（16个门×4字节=64字节）
+  // 字节74-137: 微动&静止能量值（16个门×4字节=64字节）
+  // 最后4字节: 帧尾 F8 F7 F6 F5
+  
+  if (frame_data.size() < 10) {
+    ESP_LOGW(TAG, "Frame too short to contain basic data (need at least 10 bytes)");
+    return false;
+  }
+  
+  // 解析检测结果（字节6）
+  uint8_t detection_status = frame_data[6];
+  
+  // 解析目标距离（字节7-8，小端格式）
+  uint16_t target_distance = frame_data[7] | (frame_data[8] << 8);
+  
+  // 解析光敏值（字节9）
+  uint8_t light_value_raw = frame_data[9];
+  float light_value = static_cast<float>(light_value_raw);
+  
+  // 更新光敏传感器（如果已配置）
+  if (this->light_sensor_ != nullptr) {
+    this->light_sensor_->publish_state(light_value);
+    light_value_ = light_value;
     if (!throttled) {
-      const char* status_text = "unknown";
-      switch(detection_status) {
-        case 0: status_text = "no person"; break;
-        case 1: status_text = "person"; break;
-        case 2: status_text = "stationary person"; break;
-      }
-      
-      ESP_LOGI(TAG, "Engineering mode - Detection: %s, Distance: %d cm", status_text, target_distance);
-      
-      // 强制更新距离传感器，即使距离为0
-      if (this->distance_sensor_ != nullptr) {
-        this->distance_sensor_->publish_state(target_distance);
-      }
-      
-      // 根据检测状态直接更新二进制传感器，而不是依赖距离
-      if (this->presence_binary_sensor_ != nullptr) {
-        bool is_presence = (detection_status == 1 || detection_status == 2);
-        this->presence_binary_sensor_->publish_state(is_presence);
-      }
-      
-      if (this->micromovement_binary_sensor_ != nullptr) {
-        bool is_micro = (detection_status == 2);  // 只有静止人员状态才是微动
-        this->micromovement_binary_sensor_->publish_state(is_micro);
-      }
+      ESP_LOGD(TAG, "Light sensor value from frame: %.0f", light_value);
     }
-  }  
- 
-  // 解析运动能量值 (前16个gate，从字节9开始)
-  const size_t motion_energy_start = 9;
+  }
+  
+  // 在工程模式下也更新距离和存在状态
+  // 注意：即使检测结果为0（无人/OFF状态），光敏值仍然会被更新
+  const char* status_text = "unknown";
+  switch(detection_status) {
+    case 0: status_text = "no person (OFF)"; break;
+    case 1: status_text = "person"; break;
+    case 2: status_text = "stationary person"; break;
+  }
+  
+  if (!throttled) {
+    ESP_LOGI(TAG, "Engineering mode - Detection: %s, Distance: %d cm, Light: %.0f", 
+             status_text, target_distance, light_value);
+  }
+  
+  // 强制更新距离传感器，即使距离为0（OFF状态时距离为0）
+  if (this->distance_sensor_ != nullptr) {
+    this->distance_sensor_->publish_state(target_distance);
+  }
+  
+  // 根据检测状态直接更新二进制传感器
+  // 检测结果为0时表示OFF状态（无人）
+  if (this->presence_binary_sensor_ != nullptr) {
+    bool is_presence = (detection_status == 1 || detection_status == 2);
+    this->presence_binary_sensor_->publish_state(is_presence);
+  }
+  
+  if (this->micromovement_binary_sensor_ != nullptr) {
+    bool is_micro = (detection_status == 2);  // 只有静止人员状态才是微动
+    this->micromovement_binary_sensor_->publish_state(is_micro);
+  }
+  
+  // 解析运动能量值 (前16个gate，从字节10开始)
+  const size_t motion_energy_start = 10;
   const size_t motion_gate_count = DEFAULT_GATES; // 16个门
   
   for (uint8_t i = 0; i < motion_gate_count; i++) {
@@ -879,8 +865,8 @@ bool HLKLD2402Component::process_engineering_from_distance_frame_(const std::vec
     }
   }
   
-  // 解析静止能量值 (后16个gate，从字节73开始)
-  const size_t still_energy_start = motion_energy_start + (motion_gate_count * 4); // 9 + 64 = 73
+  // 解析静止能量值 (后16个gate，从字节74开始)
+  const size_t still_energy_start = motion_energy_start + (motion_gate_count * 4); // 10 + 64 = 74
   
   // 添加边界检查
   if (frame_data.size() < still_energy_start + (motion_gate_count * 4)) {
@@ -931,7 +917,7 @@ bool HLKLD2402Component::process_engineering_from_distance_frame_(const std::vec
 
 
 // Create a separate method for updating binary sensors to avoid code duplication
-void HLKLD2402Component::update_binary_sensors_(float distance_cm) {
+void HLKLD2402LComponent::update_binary_sensors_(float distance_cm) {
   // Update presence states based on documented ranges
   if (this->presence_binary_sensor_ != nullptr) {
     bool is_presence = distance_cm <= (STATIC_RANGE * 100);
@@ -945,11 +931,48 @@ void HLKLD2402Component::update_binary_sensors_(float distance_cm) {
 }
 
 // Replace the damaged process_line_ method
-void HLKLD2402Component::process_line_(const std::string &line) {
+void HLKLD2402LComponent::process_line_(const std::string &line) {
   ESP_LOGD(TAG, "Processing line: '%s'", line.c_str());
   
-  // Handle OFF status
-  if (line == "OFF") {
+  // Parse light_value for LD2402-L format: "light_value: XX" or "light_value: XX OFF" or "light_value: XX distance: XX"
+  float light_value = 0.0f;
+  bool has_light_value = false;
+  size_t light_pos = line.find("light_value:");
+  if (light_pos != std::string::npos) {
+    // Extract light value
+    size_t value_start = light_pos + 12; // "light_value:" is 12 characters
+    // Skip whitespace
+    while (value_start < line.length() && (line[value_start] == ' ' || line[value_start] == '\t')) {
+      value_start++;
+    }
+    
+    // Find the end of the light value (space, tab, or end of string)
+    size_t value_end = value_start;
+    while (value_end < line.length() && line[value_end] != ' ' && line[value_end] != '\t' && line[value_end] != '\r' && line[value_end] != '\n') {
+      value_end++;
+    }
+    
+    if (value_end > value_start) {
+      std::string light_str = line.substr(value_start, value_end - value_start);
+      char *end;
+      float light = strtof(light_str.c_str(), &end);
+      
+      if (end != light_str.c_str()) {
+        light_value = light;
+        has_light_value = true;
+        light_value_ = light_value;
+        
+        // Update light sensor if configured
+        if (this->light_sensor_ != nullptr) {
+          this->light_sensor_->publish_state(light_value);
+          ESP_LOGD(TAG, "Light sensor value: %.1f", light_value);
+        }
+      }
+    }
+  }
+  
+  // Handle OFF status (may be standalone "OFF" or "light_value: XX OFF")
+  if (line.find("OFF") != std::string::npos) {
     ESP_LOGD(TAG, "No target detected");
     if (this->presence_binary_sensor_ != nullptr) {
       this->presence_binary_sensor_->publish_state(false);
@@ -967,7 +990,11 @@ void HLKLD2402Component::process_line_(const std::string &line) {
       this->distance_sensor_->publish_state(0);
       last_distance_update_ = now; // Update timestamp for throttling
     }
-    return;
+    
+    // If we only have light_value and OFF, return early
+    if (line.find("distance:") == std::string::npos) {
+      return;
+    }
   }
 
   // Handle different formats of distance data
@@ -996,23 +1023,26 @@ void HLKLD2402Component::process_line_(const std::string &line) {
     }
   } else {
     // Try parsing just a number (some devices output just the number)
-    bool is_numeric = true;
-    for (char ch : line) {
-      if (!isdigit(ch) && ch != '.') {
-        is_numeric = false;
-        break;
+    // But skip if we already found light_value (to avoid false positives)
+    if (!has_light_value) {
+      bool is_numeric = true;
+      for (char ch : line) {
+        if (!isdigit(ch) && ch != '.') {
+          is_numeric = false;
+          break;
+        }
       }
-    }
-    
-    if (is_numeric && !line.empty()) {
-      char *end;
-      float distance = strtof(line.c_str(), &end);
       
-      if (end != line.c_str()) {
-        distance_cm = distance;
-        valid_distance = true;
+      if (is_numeric && !line.empty()) {
+        char *end;
+        float distance = strtof(line.c_str(), &end);
         
-        ESP_LOGV(TAG, "Detected numeric distance: %.1f cm", distance_cm);
+        if (end != line.c_str()) {
+          distance_cm = distance;
+          valid_distance = true;
+          
+          ESP_LOGV(TAG, "Detected numeric distance: %.1f cm", distance_cm);
+        }
       }
     }
   }
@@ -1044,14 +1074,14 @@ void HLKLD2402Component::process_line_(const std::string &line) {
   }
 }
 
-void HLKLD2402Component::dump_config() {
+void HLKLD2402LComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "HLK-LD2402:");
   ESP_LOGCONFIG(TAG, "  Firmware Version: %s", firmware_version_.c_str());
   ESP_LOGCONFIG(TAG, "  Max Distance: %.1f m", max_distance_);
   ESP_LOGCONFIG(TAG, "  Timeout: %u s", timeout_);
 }
 
-bool HLKLD2402Component::write_frame_(const std::vector<uint8_t> &frame) {
+bool HLKLD2402LComponent::write_frame_(const std::vector<uint8_t> &frame) {
   size_t written = 0;
   size_t tries = 0;
   while (written < frame.size() && tries++ < 3) {
@@ -1065,7 +1095,7 @@ bool HLKLD2402Component::write_frame_(const std::vector<uint8_t> &frame) {
   return written == frame.size();
 }
 
-bool HLKLD2402Component::send_command_(uint16_t command, const uint8_t *data, size_t len) {
+bool HLKLD2402LComponent::send_command_(uint16_t command, const uint8_t *data, size_t len) {
   // 更彻底地清空缓冲区，确保没有残留数据
   flush();
   delay(20); // 短暂延迟，确保flush生效
@@ -1123,7 +1153,7 @@ bool HLKLD2402Component::send_command_(uint16_t command, const uint8_t *data, si
 }
 
 // Modify read_response_ to accept a custom timeout
-bool HLKLD2402Component::read_response_(std::vector<uint8_t> &response, uint32_t timeout_ms) {
+bool HLKLD2402LComponent::read_response_(std::vector<uint8_t> &response, uint32_t timeout_ms) {
   uint32_t start = millis();
   std::vector<uint8_t> buffer;
   uint8_t header_match = 0;
@@ -1168,7 +1198,7 @@ bool HLKLD2402Component::read_response_(std::vector<uint8_t> &response, uint32_t
 }
 
 // Modify get_parameter_ to use a longer timeout for power interference parameter
-bool HLKLD2402Component::get_parameter_(uint16_t param_id, uint32_t &value) {
+bool HLKLD2402LComponent::get_parameter_(uint16_t param_id, uint32_t &value) {
   ESP_LOGD(TAG, "Getting parameter 0x%04X", param_id);
   
   uint8_t data[2];
@@ -1220,11 +1250,11 @@ bool HLKLD2402Component::get_parameter_(uint16_t param_id, uint32_t &value) {
   return false;
 }
 
-bool HLKLD2402Component::set_work_mode_(uint32_t mode) {
+bool HLKLD2402LComponent::set_work_mode_(uint32_t mode) {
   return set_work_mode_with_timeout_(mode, 1000);  // Use default 1000ms timeout
 }
 
-bool HLKLD2402Component::set_work_mode_with_timeout_(uint32_t mode, uint32_t timeout_ms) {
+bool HLKLD2402LComponent::set_work_mode_with_timeout_(uint32_t mode, uint32_t timeout_ms) {
   ESP_LOGI(TAG, "Setting work mode to %u (0x%X) with %ums timeout", mode, mode, timeout_ms);
   
   // Use production mode from manual instead of MODE_NORMAL
@@ -1318,7 +1348,7 @@ bool HLKLD2402Component::set_work_mode_with_timeout_(uint32_t mode, uint32_t tim
 }
 
 // Keep the existing set_engineering_mode for backward compatibility (used as toggle)
-void HLKLD2402Component::set_engineering_mode() {
+void HLKLD2402LComponent::set_engineering_mode() {
   // Check if we're already in Engineering mode - if so, switch back to normal
   if (operating_mode_ == "Engineering") {
     ESP_LOGI(TAG, "Already in engineering mode, switching back to normal mode");
@@ -1331,7 +1361,7 @@ void HLKLD2402Component::set_engineering_mode() {
 }
 
 // New method that directly sets engineering mode without toggle behavior
-void HLKLD2402Component::set_engineering_mode_direct() {
+void HLKLD2402LComponent::set_engineering_mode_direct() {
   // 检查是否已经处于工程模式，避免不必要的操作
   if (operating_mode_ == "Engineering") {
     ESP_LOGI(TAG, "Already in engineering mode. No action needed.");
@@ -1467,7 +1497,7 @@ void HLKLD2402Component::set_engineering_mode_direct() {
 }
 
 // New method for directly setting normal mode without toggle logic
-void HLKLD2402Component::set_normal_mode_direct() {
+void HLKLD2402LComponent::set_normal_mode_direct() {
   // Check if already in normal mode to avoid unnecessary actions
   if (operating_mode_ == "Normal") {
     ESP_LOGI(TAG, "Already in normal mode. No action needed.");
@@ -1478,7 +1508,7 @@ void HLKLD2402Component::set_normal_mode_direct() {
   set_normal_mode();
 }
 
-void HLKLD2402Component::set_normal_mode() {
+void HLKLD2402LComponent::set_normal_mode() {
   ESP_LOGI(TAG, "Switching to normal mode...");
   
   // IMPORTANT: Disable engineering data processing flag when returning to normal mode
@@ -1510,7 +1540,7 @@ void HLKLD2402Component::set_normal_mode() {
   }
 }
 
-void HLKLD2402Component::save_config() {
+void HLKLD2402LComponent::save_config() {
   ESP_LOGI(TAG, "Saving configuration...");
   
   if (!enter_config_mode_()) {
@@ -1527,7 +1557,7 @@ void HLKLD2402Component::save_config() {
   exit_config_mode_();
 }
 
-bool HLKLD2402Component::save_configuration_() {
+bool HLKLD2402LComponent::save_configuration_() {
   ESP_LOGI(TAG, "Sending save configuration command...");
   
   // Clear any pending data first to ensure a clean state
@@ -1618,7 +1648,7 @@ bool HLKLD2402Component::save_configuration_() {
 }
 
 // Update enable_auto_gain to use correct commands per documentation section 5.4
-void HLKLD2402Component::enable_auto_gain() {
+void HLKLD2402LComponent::enable_auto_gain() {
   ESP_LOGI(TAG, "Enabling auto gain...");
   
   if (!enter_config_mode_()) {
@@ -1660,7 +1690,7 @@ void HLKLD2402Component::enable_auto_gain() {
   exit_config_mode_();
 }
 
-bool HLKLD2402Component::enable_auto_gain_() {
+bool HLKLD2402LComponent::enable_auto_gain_() {
   // As per section 5.4, send the auto gain command
   if (!send_command_(CMD_AUTO_GAIN)) {
     ESP_LOGE(TAG, "Failed to send auto gain command");
@@ -1684,7 +1714,7 @@ bool HLKLD2402Component::enable_auto_gain_() {
 }
 
 // Add serial number retrieval methods
-void HLKLD2402Component::get_serial_number() {
+void HLKLD2402LComponent::get_serial_number() {
   ESP_LOGI(TAG, "Getting serial number...");
   
   if (!enter_config_mode_()) {
@@ -1703,7 +1733,7 @@ void HLKLD2402Component::get_serial_number() {
   exit_config_mode_();
 }
 
-bool HLKLD2402Component::get_serial_number_hex_() {
+bool HLKLD2402LComponent::get_serial_number_hex_() {
   if (!send_command_(CMD_GET_SN_HEX)) {
     ESP_LOGE(TAG, "Failed to send hex SN command");
     return false;
@@ -1738,7 +1768,7 @@ bool HLKLD2402Component::get_serial_number_hex_() {
   return false;
 }
 
-bool HLKLD2402Component::get_serial_number_char_() {
+bool HLKLD2402LComponent::get_serial_number_char_() {
   if (!send_command_(CMD_GET_SN_CHAR)) {
     ESP_LOGE(TAG, "Failed to send char SN command");
     return false;
@@ -1771,7 +1801,7 @@ bool HLKLD2402Component::get_serial_number_char_() {
   return false;
 }
 
-void HLKLD2402Component::check_power_interference() {
+void HLKLD2402LComponent::check_power_interference() {
   ESP_LOGI(TAG, "Checking power interference status");
   
   // Clear any pending data first
@@ -1890,20 +1920,129 @@ void HLKLD2402Component::check_power_interference() {
   }
 }
 
-uint32_t HLKLD2402Component::db_to_threshold_(float db_value) {
+// Add light sensor reading method (for LD2402-L)
+void HLKLD2402LComponent::get_light_value() {
+  get_light_value_();
+}
+
+bool HLKLD2402LComponent::get_light_value_() {
+  if (light_sensor_ == nullptr) {
+    return false;
+  }
+  
+  ESP_LOGD(TAG, "Reading light sensor value...");
+  
+  // Clear any pending data
+  flush();
+  while (available()) {
+    uint8_t c;
+    read_byte(&c);
+  }
+  
+  // Flag to track if we entered config mode in this function
+  bool entered_config_mode = false;
+  
+  if (!config_mode_) {
+    if (!enter_config_mode_()) {
+      ESP_LOGW(TAG, "Failed to enter config mode for light sensor read");
+      return false;
+    }
+    entered_config_mode = true;
+  }
+  
+  // Try reading light value as a parameter (PARAM_LIGHT_VALUE = 0x0006)
+  uint8_t param_data[2];
+  param_data[0] = PARAM_LIGHT_VALUE & 0xFF;  // 0x06
+  param_data[1] = (PARAM_LIGHT_VALUE >> 8) & 0xFF;  // 0x00
+  
+  if (!send_command_(CMD_GET_PARAMS, param_data, sizeof(param_data))) {
+    ESP_LOGW(TAG, "Failed to send light sensor parameter query");
+    if (entered_config_mode) {
+      exit_config_mode_();
+    }
+    return false;
+  }
+  
+  // Wait for response
+  delay(200);
+  
+  std::vector<uint8_t> response;
+  if (!read_response_(response, 1000)) {
+    ESP_LOGW(TAG, "No response to light sensor parameter query");
+    if (entered_config_mode) {
+      exit_config_mode_();
+    }
+    return false;
+  }
+  
+  // Log the response for debugging
+  char hex_buf[64] = {0};
+  for (size_t i = 0; i < response.size() && i < 16; i++) {
+    sprintf(hex_buf + (i*3), "%02X ", response[i]);
+  }
+  ESP_LOGD(TAG, "Light sensor response: %s", hex_buf);
+  
+  // Parse response - typically format: CMD (2 bytes) + ACK (2 bytes) + Parameter ID (2 bytes) + Parameter value (4 bytes)
+  // Light value is typically 0-100 (percentage) or 0-1000 (lux * 10)
+  float light_value = 0.0f;
+  
+  if (response.size() >= 10) {
+    // Parameter value is at offset 6-9, little endian
+    uint32_t raw_value = response[6] | (response[7] << 8) | (response[8] << 16) | (response[9] << 24);
+    
+    // Light sensor typically returns 0-100 (percentage) or 0-1000 (lux * 10)
+    // Try to determine format based on value range
+    if (raw_value <= 100) {
+      // Likely percentage format (0-100%)
+      light_value = static_cast<float>(raw_value);
+      ESP_LOGD(TAG, "Light sensor value: %.1f%% (raw: %u)", light_value, raw_value);
+    } else if (raw_value <= 1000) {
+      // Likely lux * 10 format (0-1000 = 0-100 lux)
+      light_value = static_cast<float>(raw_value) / 10.0f;
+      ESP_LOGD(TAG, "Light sensor value: %.1f lux (raw: %u)", light_value, raw_value);
+    } else {
+      // Use raw value as-is, might be direct lux value
+      light_value = static_cast<float>(raw_value);
+      ESP_LOGD(TAG, "Light sensor value: %.1f (raw: %u)", light_value, raw_value);
+    }
+    
+    light_value_ = light_value;
+    
+    // Update sensor
+    if (light_sensor_ != nullptr) {
+      light_sensor_->publish_state(light_value);
+      ESP_LOGD(TAG, "Published light sensor value: %.1f", light_value);
+    }
+  } else {
+    ESP_LOGW(TAG, "Invalid light sensor parameter response format (size: %d)", response.size());
+    if (entered_config_mode) {
+      exit_config_mode_();
+    }
+    return false;
+  }
+  
+  // Exit config mode if we entered it
+  if (entered_config_mode) {
+    exit_config_mode_();
+  }
+  
+  return true;
+}
+
+uint32_t HLKLD2402LComponent::db_to_threshold_(float db_value) {
   return static_cast<uint32_t>(pow(10, db_value / 10)); 
 }
 
-float HLKLD2402Component::threshold_to_db_(uint32_t threshold) {
+float HLKLD2402LComponent::threshold_to_db_(uint32_t threshold) {
   return 10 * log10(threshold);
 }
 
-void HLKLD2402Component::factory_reset() {
+void HLKLD2402LComponent::factory_reset() {
   // Call the parameterized version with default values
   factory_reset_with_params(5.0f, 5);
 }
 
-void HLKLD2402Component::factory_reset_with_params(float max_distance, int timeout) {
+void HLKLD2402LComponent::factory_reset_with_params(float max_distance, int timeout) {
   ESP_LOGI(TAG, "Performing factory reset with params: max_distance=%.1fm, timeout=%ds", max_distance, timeout);
   
   // Clear UART buffers before starting
@@ -1996,7 +2135,7 @@ void HLKLD2402Component::factory_reset_with_params(float max_distance, int timeo
 }
 
 // Make sure we have matching implementations for ALL protected methods
-bool HLKLD2402Component::enter_config_mode_() {
+bool HLKLD2402LComponent::enter_config_mode_() {
   if (config_mode_)
     return true;
     
@@ -2082,7 +2221,7 @@ bool HLKLD2402Component::enter_config_mode_() {
   return false;
 }
 
-bool HLKLD2402Component::exit_config_mode_() {
+bool HLKLD2402LComponent::exit_config_mode_() {
   if (!config_mode_)
     return true;
     
@@ -2124,7 +2263,7 @@ bool HLKLD2402Component::exit_config_mode_() {
   return true;
 }
 
-bool HLKLD2402Component::set_parameter_(uint16_t param_id, uint32_t value) {
+bool HLKLD2402LComponent::set_parameter_(uint16_t param_id, uint32_t value) {
   ESP_LOGD(TAG, "Setting parameter 0x%04X to %u", param_id, value);
   
   uint8_t data[6];
@@ -2178,7 +2317,7 @@ bool HLKLD2402Component::set_parameter_(uint16_t param_id, uint32_t value) {
 }
 
 // Add these methods to configure thresholds for specific gates
-bool HLKLD2402Component::set_motion_threshold(uint8_t gate, float db_value) {
+bool HLKLD2402LComponent::set_motion_threshold(uint8_t gate, float db_value) {
   ESP_LOGD(TAG, "Setting motion threshold for gate %d to %.1f dB", gate, db_value);
   
   if (gate >= 16) {
@@ -2221,7 +2360,7 @@ bool HLKLD2402Component::set_motion_threshold(uint8_t gate, float db_value) {
   return success;
 }
 
-bool HLKLD2402Component::set_micromotion_threshold(uint8_t gate, float db_value) {
+bool HLKLD2402LComponent::set_micromotion_threshold(uint8_t gate, float db_value) {
   ESP_LOGD(TAG, "Setting micromotion threshold for gate %d to %.1f dB", gate, db_value);
   
   if (gate >= 16) {
@@ -2265,7 +2404,7 @@ bool HLKLD2402Component::set_micromotion_threshold(uint8_t gate, float db_value)
 }
 
 // Add a new method for batch parameter reading
-bool HLKLD2402Component::get_parameters_batch_(const std::vector<uint16_t> &param_ids, std::vector<uint32_t> &values) {
+bool HLKLD2402LComponent::get_parameters_batch_(const std::vector<uint16_t> &param_ids, std::vector<uint32_t> &values) {
   ESP_LOGD(TAG, "Reading %d parameters in batch mode", param_ids.size());
   
   // Prepare data: length of IDs array (2 bytes) followed by param IDs
@@ -2328,7 +2467,7 @@ bool HLKLD2402Component::get_parameters_batch_(const std::vector<uint16_t> &para
 }
 
 // Method to read all motion thresholds in one call
-bool HLKLD2402Component::get_all_motion_thresholds() {
+bool HLKLD2402LComponent::get_all_motion_thresholds() {
   ESP_LOGI(TAG, "Reading all motion thresholds");
   
   if (!enter_config_mode_()) {
@@ -2373,7 +2512,7 @@ bool HLKLD2402Component::get_all_motion_thresholds() {
 }
 
 // Method to read all micromotion thresholds in one call
-bool HLKLD2402Component::get_all_micromotion_thresholds() {
+bool HLKLD2402LComponent::get_all_micromotion_thresholds() {
   ESP_LOGI(TAG, "Reading all micromotion thresholds");
   
   if (!enter_config_mode_()) {
@@ -2418,12 +2557,12 @@ bool HLKLD2402Component::get_all_micromotion_thresholds() {
 }
 
 // Update calibration to match new command format and improve progress tracking
-void HLKLD2402Component::calibrate() {
+void HLKLD2402LComponent::calibrate() {
   calibrate_with_coefficients(3.0f, 3.0f, 3.0f);
 }
 
 // Update calibration to match new command format and improve progress tracking
-bool HLKLD2402Component::calibrate_with_coefficients(float trigger_coeff, float hold_coeff, float micromotion_coeff) {
+bool HLKLD2402LComponent::calibrate_with_coefficients(float trigger_coeff, float hold_coeff, float micromotion_coeff) {
   ESP_LOGI(TAG, "Starting calibration with custom coefficients...");
   
   if (!enter_config_mode_()) {

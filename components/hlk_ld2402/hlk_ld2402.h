@@ -8,7 +8,7 @@
 #include "esphome/components/text_sensor/text_sensor.h"  // Include without condition
 
 namespace esphome {
-namespace hlk_ld2402 {
+namespace hlk_ld2402l {
 
 static const uint8_t FRAME_HEADER[] = {0xFD, 0xFC, 0xFB, 0xFA};
 static const uint8_t FRAME_FOOTER[] = {0x04, 0x03, 0x02, 0x01};
@@ -34,6 +34,7 @@ static const uint16_t CMD_CALIBRATION_INTERFERENCE = 0x0014;  // Report calibrat
 static const uint16_t CMD_SAVE_PARAMS = 0x00FD;  // Save parameters to flash
 static const uint16_t CMD_AUTO_GAIN = 0x00EE;  // Auto gain adjustment
 static const uint16_t CMD_AUTO_GAIN_COMPLETE = 0x00F0;  // Auto gain completion notification
+static const uint16_t CMD_GET_LIGHT = 0x0017;  // Read light sensor value (for LD2402-L)
 
 // Parameters
 static const uint16_t PARAM_MAX_DISTANCE = 0x0001;  // Max detection distance
@@ -41,6 +42,7 @@ static const uint16_t PARAM_TIMEOUT = 0x0004;  // Target disappearance delay
 static const uint16_t PARAM_POWER_INTERFERENCE = 0x0005;  // Power interference status (read-only)
 static const uint16_t PARAM_TRIGGER_THRESHOLD = 0x0010;  // Motion trigger threshold base (0x0010-0x001F)
 static const uint16_t PARAM_MICRO_THRESHOLD = 0x0030;  // Micromotion threshold base (0x0030-0x003F)
+static const uint16_t PARAM_LIGHT_VALUE = 0x0006;  // Light sensor value (for LD2402-L, read-only)
 
 // Work modes
 static const uint32_t MODE_PRODUCTION = 0x00000064;  // Normal production mode
@@ -69,7 +71,7 @@ static const uint8_t DEFAULT_COEFF = 0x1E;  // Default coefficient (3.0)
 static const float MIN_COEFF = 1.0f;
 static const float MAX_COEFF = 20.0f;
 
-class HLKLD2402Component : public Component, public uart::UARTDevice {
+class HLKLD2402LComponent : public Component, public uart::UARTDevice {
 public:
   float get_setup_priority() const override { return setup_priority::HARDWARE; }
 
@@ -78,6 +80,7 @@ public:
   void set_presence_binary_sensor(binary_sensor::BinarySensor *presence) { presence_binary_sensor_ = presence; }
   void set_micromovement_binary_sensor(binary_sensor::BinarySensor *micro) { micromovement_binary_sensor_ = micro; }
   void set_power_interference_binary_sensor(binary_sensor::BinarySensor *power_interference) { power_interference_binary_sensor_ = power_interference; }
+  void set_light_sensor(sensor::Sensor *light_sensor) { light_sensor_ = light_sensor; }
   void set_max_distance(float max_distance) { max_distance_ = max_distance; }
   void set_timeout(uint32_t timeout) { timeout_ = timeout; }
   
@@ -151,6 +154,7 @@ public:
   void set_normal_mode();
   
   void get_serial_number();
+  void get_light_value();  // Read light sensor value (for LD2402-L)
 
   // Add new threshold setting methods
   bool set_motion_threshold(uint8_t gate, float db_value);
@@ -201,6 +205,7 @@ protected:
   bool enable_auto_gain_();
   bool get_serial_number_hex_();
   bool get_serial_number_char_();
+  bool get_light_value_();  // Internal method to read light sensor
 
   // Convert dB value to raw threshold
   uint32_t db_to_threshold_(float db_value);
@@ -220,6 +225,7 @@ private:
   
   sensor::Sensor *distance_sensor_{nullptr};
   sensor::Sensor *calibration_progress_sensor_{nullptr};
+  sensor::Sensor *light_sensor_{nullptr};
   binary_sensor::BinarySensor *presence_binary_sensor_{nullptr};
   binary_sensor::BinarySensor *micromovement_binary_sensor_{nullptr};
   binary_sensor::BinarySensor *power_interference_binary_sensor_{nullptr};
@@ -243,6 +249,9 @@ private:
   uint32_t distance_throttle_ms_{2000}; // Default throttle of 2 seconds
   uint32_t last_engineering_update_{0}; // Time of last engineering data update
   uint32_t engineering_throttle_ms_{2000}; // Engineering data throttle (2 seconds)
+  uint32_t last_light_update_{0}; // Time of last light sensor update
+  uint32_t light_throttle_ms_{5000}; // Light sensor throttle (5 seconds default)
+  float light_value_{0.0f}; // Current light sensor value
   std::vector<sensor::Sensor *> energy_gate_sensors_; // Store gate sensors
   bool engineering_data_enabled_{false}; // Flag to enable engineering data processing
   

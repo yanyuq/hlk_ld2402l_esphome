@@ -6,7 +6,7 @@ from esphome.const import (
     ENTITY_CATEGORY_DIAGNOSTIC,
 )
 
-from . import HLKLD2402Component, CONF_HLK_LD2402_ID
+from . import HLKLD2402LComponent, CONF_HLK_LD2402_ID
 
 # Define text sensor types
 CONF_FIRMWARE_VERSION = "firmware_version"
@@ -17,7 +17,7 @@ CONFIG_SCHEMA = text_sensor.text_sensor_schema(
     entity_category=ENTITY_CATEGORY_DIAGNOSTIC
 ).extend({
     cv.GenerateID(): cv.declare_id(text_sensor.TextSensor),
-    cv.Required(CONF_HLK_LD2402_ID): cv.use_id(HLKLD2402Component),
+    cv.Required(CONF_HLK_LD2402_ID): cv.use_id(HLKLD2402LComponent),
     cv.Optional(CONF_FIRMWARE_VERSION, default=False): cv.boolean,
     cv.Optional(CONF_OPERATING_MODE, default=False): cv.boolean,
 })

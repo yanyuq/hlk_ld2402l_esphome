@@ -4,16 +4,19 @@ from esphome.components import sensor
 from esphome.const import (
     CONF_ID,
     DEVICE_CLASS_DISTANCE,
+    DEVICE_CLASS_ILLUMINANCE,
     STATE_CLASS_MEASUREMENT,
     UNIT_CENTIMETER,
     UNIT_PERCENT,
+    UNIT_LUX,
     ENTITY_CATEGORY_DIAGNOSTIC,
 )
 
-from . import HLKLD2402Component, CONF_HLK_LD2402_ID
+from . import HLKLD2402LComponent, CONF_HLK_LD2402_ID
 
 CONF_THROTTLE = "throttle"
 CONF_CALIBRATION_PROGRESS = "calibration_progress"
+CONF_LIGHT = "light"  # Light sensor (for LD2402-L)
 CONF_ENERGY_GATE = "energy_gate"  # Motion energy gate sensors (前16个gate)
 CONF_STILL_ENERGY_GATE = "still_energy_gate"  # Still energy gate sensors (后16个gate)
 CONF_GATE_INDEX = "gate_index"     # Gate number (0-15)
@@ -23,9 +26,10 @@ CONF_MICROMOTION_THRESHOLD = "micromotion_threshold"  # Micromotion threshold se
 # Update schema to include still energy gate sensors
 CONFIG_SCHEMA = sensor.sensor_schema().extend({
     cv.GenerateID(): cv.declare_id(sensor.Sensor),
-    cv.Required(CONF_HLK_LD2402_ID): cv.use_id(HLKLD2402Component),
+    cv.Required(CONF_HLK_LD2402_ID): cv.use_id(HLKLD2402LComponent),
     cv.Optional(CONF_THROTTLE): cv.positive_time_period_milliseconds,
     cv.Optional(CONF_CALIBRATION_PROGRESS, default=False): cv.boolean,
+    cv.Optional(CONF_LIGHT, default=False): cv.boolean,  # Light sensor (for LD2402-L)
     cv.Optional(CONF_ENERGY_GATE): cv.Schema({
         cv.Required(CONF_GATE_INDEX): cv.int_range(0, 15),
     }),
@@ -61,6 +65,9 @@ async def to_code(config):
     elif config.get(CONF_CALIBRATION_PROGRESS):
         # This is a calibration progress sensor
         cg.add(parent.set_calibration_progress_sensor(var))
+    elif config.get(CONF_LIGHT):
+        # This is a light sensor (for LD2402-L)
+        cg.add(parent.set_light_sensor(var))
     else:
         # This is a regular distance sensor
         cg.add(parent.set_distance_sensor(var))
