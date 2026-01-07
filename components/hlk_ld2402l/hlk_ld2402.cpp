@@ -785,12 +785,21 @@ bool HLKLD2402LComponent::process_engineering_from_distance_frame_(const std::ve
   
   // 验证光敏值范围（0-255）
   if (light_value >= 0.0f && light_value <= 255.0f) {
-    // 更新光敏传感器（如果已配置）
+    // 更新光敏传感器（如果已配置），应用节流
     if (this->light_sensor_ != nullptr) {
-      this->light_sensor_->publish_state(light_value);
-      light_value_ = light_value;
-      if (!throttled) {
-        ESP_LOGD(TAG, "Light sensor value from frame: %.0f", light_value);
+      uint32_t now = millis();
+      bool light_throttled = (now - last_light_update_ < light_throttle_ms_);
+      
+      if (!light_throttled) {
+        this->light_sensor_->publish_state(light_value);
+        light_value_ = light_value;
+        last_light_update_ = now;
+        if (!throttled) {
+          ESP_LOGD(TAG, "Light sensor value from frame: %.0f", light_value);
+        }
+      } else {
+        // 即使被节流，也更新内部值，但不发布
+        light_value_ = light_value;
       }
     }
   } else {
@@ -965,10 +974,20 @@ void HLKLD2402LComponent::process_line_(const std::string &line) {
           has_light_value = true;
           light_value_ = light_value;
           
-          // Update light sensor if configured
+          // Update light sensor if configured, apply throttling
           if (this->light_sensor_ != nullptr) {
-            this->light_sensor_->publish_state(light_value);
-            ESP_LOGD(TAG, "Light sensor value from text: %.1f", light_value);
+            uint32_t now = millis();
+            bool light_throttled = (now - last_light_update_ < light_throttle_ms_);
+            
+            if (!light_throttled) {
+              this->light_sensor_->publish_state(light_value);
+              last_light_update_ = now;
+              ESP_LOGD(TAG, "Light sensor value from text: %.1f", light_value);
+            } else {
+              // Even if throttled, update internal value but don't publish
+              ESP_LOGV(TAG, "Light sensor value throttled: %.1f (next update in %d ms)", 
+                      light_value, light_throttle_ms_ - (now - last_light_update_));
+            }
           }
         } else {
           ESP_LOGW(TAG, "Invalid light value from text: %.1f (out of range 0-255, ignoring)", light);
@@ -2039,10 +2058,19 @@ bool HLKLD2402LComponent::get_light_value_() {
     
     light_value_ = light_value;
     
-    // Update sensor
+    // Update sensor with throttling
     if (light_sensor_ != nullptr) {
-      light_sensor_->publish_state(light_value);
-      ESP_LOGD(TAG, "Published light sensor value: %.1f", light_value);
+      uint32_t now = millis();
+      bool light_throttled = (now - last_light_update_ < light_throttle_ms_);
+      
+      if (!light_throttled) {
+        light_sensor_->publish_state(light_value);
+        last_light_update_ = now;
+        ESP_LOGD(TAG, "Published light sensor value: %.1f", light_value);
+      } else {
+        ESP_LOGV(TAG, "Light sensor value throttled: %.1f (next update in %d ms)", 
+                light_value, light_throttle_ms_ - (now - last_light_update_));
+      }
     }
   } else {
     ESP_LOGW(TAG, "Invalid light sensor parameter response format (size: %d)", response.size());

@@ -68,6 +68,8 @@ async def to_code(config):
     elif config.get(CONF_LIGHT):
         # This is a light sensor (for LD2402-L)
         cg.add(parent.set_light_sensor(var))
+        if CONF_THROTTLE in config:
+            cg.add(parent.set_light_throttle(config[CONF_THROTTLE]))
     else:
         # This is a regular distance sensor
         cg.add(parent.set_distance_sensor(var))

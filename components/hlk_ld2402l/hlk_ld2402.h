@@ -81,6 +81,7 @@ public:
   void set_micromovement_binary_sensor(binary_sensor::BinarySensor *micro) { micromovement_binary_sensor_ = micro; }
   void set_power_interference_binary_sensor(binary_sensor::BinarySensor *power_interference) { power_interference_binary_sensor_ = power_interference; }
   void set_light_sensor(sensor::Sensor *light_sensor) { light_sensor_ = light_sensor; }
+  void set_light_throttle(uint32_t throttle_ms) { light_throttle_ms_ = throttle_ms; }
   void set_max_distance(float max_distance) { max_distance_ = max_distance; }
   void set_timeout(uint32_t timeout) { timeout_ = timeout; }
   
